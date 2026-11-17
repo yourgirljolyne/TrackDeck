@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+*.user
+.vs/
+
+# Device backups made by `NowPlayingCard backup` (contain your keyboard's own files)
+backups/
+
+# Packaged widgets (attach these to releases instead)
+*.icuewidget

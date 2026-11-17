@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Now Playing</title>
+  <link rel="icon" href="resources/icon.svg" />
+  <meta name="x-icue-widget-group" content="Media" />
+
+  <meta name="x-icue-property" content="accentColor" data-label="'Accent color'" data-type="color" data-default="'#1DB954'" />
+  <meta name="x-icue-property" content="backgroundStyle" data-label="'Background'" data-type="combobox" data-default="'art'" data-values="[{'key':'art','value':'Blurred album art'},{'key':'solid','value':'Solid color'}]" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="'Background color'" data-type="color" data-default="'#121212'" />
+  <meta name="x-icue-property" content="showAlbum" data-label="'Show album name'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showVisualizer" data-label="'Show visualizer'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="scrollLongText" data-label="'Scroll long titles'" data-type="switch" data-default="true" />
+
+  <script type="application/json" id="x-icue-groups">
+    [
+      { "title": "Look", "properties": ["accentColor", "backgroundStyle", "backgroundColor"] },
+      { "title": "Content", "properties": ["showAlbum", "showVisualizer", "scrollLongText"] }
+    ]
+  </script>
+</head>
+<body>
+<style>
+  :root {
+    --accent: #1DB954;
+    --bg: #121212;
+    --text: #ffffff;
+    --muted: rgba(255, 255, 255, 0.68);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Backdrop: blurred cover art with a dark scrim */
+  #backdrop {
+    position: absolute; inset: -20px;
+    background-size: cover; background-position: center;
+    filter: blur(18px) saturate(1.4);
+    opacity: 0; transition: opacity 0.6s ease;
+  }
+  body.bg-art.has-art #backdrop { opacity: 1; }
+  #scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.72) 100%);
+  }
+  body.bg-solid #scrim { background: transparent; }
+
+  #card {
+    position: relative;
+    height: 100%;
+    display: flex; align-items: center;
+    gap: 4.5vw;
+    padding: 6vh 5vw;
+  }
+
+  /* Cover art: square that fills the screen height */
+  #cover {
+    flex: 0 0 auto;
+    height: min(100%, 38vw);
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    background: #282828 center / cover no-repeat;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.55);
+    position: relative; overflow: hidden;
+    transition: transform 0.35s ease, filter 0.35s ease;
+  }
+  #cover.placeholder::after {
+    content: "";
+    position: absolute; inset: 28%;
+    background:
+      radial-gradient(circle at 50% 50%, #282828 0 14%, transparent 15%),
+      radial-gradient(circle at 50% 50%, #3e3e3e 0 70%, transparent 71%);
+  }
+  body.paused #cover { transform: scale(0.94); filter: brightness(0.7); }
+
+  #info {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 1.2vh;
+  }
+
+  #status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 7vh; font-weight: 700; white-space: nowrap;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5vh;
+  }
+  #status .dot {
+    width: 1.1em; height: 1.1em; border-radius: 50%;
+    background: var(--accent);
+    display: grid; place-items: center;
+  }
+  #status .dot svg { width: 62%; height: 62%; fill: #000; }
+
+  .line { overflow: hidden; white-space: nowrap; position: relative; }
+  .line > span { display: inline-block; padding-right: 0; }
+  .line.scrolling > span {
+    padding-right: 2.5em;
+    animation: marquee var(--dur, 10s) linear infinite;
+  }
+  .line.scrolling {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6px, #000 calc(100% - 14px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 6px, #000 calc(100% - 14px), transparent 100%);
+  }
+  @keyframes marquee {
+    0%, 18% { transform: translateX(0); }
+    100% { transform: translateX(var(--shift)); }
+  }
+
+  #title  { font-size: 12.5vh; font-weight: 700; line-height: 1.2; }
+  #artist { font-size: 9.5vh; font-weight: 500; color: var(--muted); line-height: 1.25; }
+  #album  { font-size: 8vh;  font-weight: 400; color: rgba(255,255,255,0.45); line-height: 1.2; }
+  body.hide-album #album { display: none; }
+
+  /* Visualizer bars */
+  #viz {
+    display: flex; align-items: flex-end; gap: 3px;
+    height: 13vh; margin-top: 3vh;
+  }
+  #viz i {
+    flex: 0 0 auto; width: 4px; height: 100%;
+    background: var(--accent); border-radius: 2px;
+    transform-origin: bottom;
+    animation: bounce 1s ease-in-out infinite alternate;
+  }
+  body.paused #viz i { animation-play-state: paused; opacity: 0.45; }
+  body.hide-viz #viz { display: none; }
+  @keyframes bounce {
+    0%   { transform: scaleY(0.18); }
+    50%  { transform: scaleY(0.9); }
+    100% { transform: scaleY(0.35); }
+  }
+
+  /* Idle state */
+  #idle {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2vh;
+    color: var(--muted); font-size: 11vh; font-weight: 600;
+  }
+  #idle .logo {
+    width: 30vh; height: 30vh; border-radius: 50%;
+    background: var(--accent);
+    display: grid; place-items: center;
+  }
+  #idle .logo svg { width: 58%; height: 58%; fill: #000; }
+  body.idle #card, body.idle #backdrop { display: none; }
+  body.idle #idle { display: flex; }
+</style>
+
+<div id="backdrop"></div>
+<div id="scrim"></div>
+
+<div id="card">
+  <div id="cover" class="placeholder"></div>
+  <div id="info">
+    <div id="status">
+      <span class="dot"><svg viewBox="0 0 24 24"><path id="statusIcon" d="M8 5v14l11-7z"/></svg></span>
+      <span id="statusText">Now playing</span>
+    </div>
+    <div class="line" id="title"><span>Nothing playing</span></div>
+    <div class="line" id="artist"><span></span></div>
+    <div class="line" id="album"><span></span></div>
+    <div id="viz"></div>
+  </div>
+</div>
+
+<div id="idle">
+  <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+  <div>Nothing playing</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PLAY_ICON  = "M8 5v14l11-7z";
+  var PAUSE_ICON = "M6 5h4v14H6zM14 5h4v14h-4z";
+
+  var els = {
+    body: document.body,
+    backdrop: document.getElementById("backdrop"),
+    cover: document.getElementById("cover"),
+    title: document.getElementById("title"),
+    artist: document.getElementById("artist"),
+    album: document.getElementById("album"),
+    statusText: document.getElementById("statusText"),
+    statusIcon: document.getElementById("statusIcon"),
+    viz: document.getElementById("viz")
+  };
+
+  // Build visualizer bars with staggered timing
+  (function buildViz() {
+    var n = 14;
+    for (var i = 0; i < n; i++) {
+      var b = document.createElement("i");
+      b.style.animationDuration = (0.55 + ((i * 37) % 50) / 100) + "s";
+      b.style.animationDelay = (-((i * 53) % 90) / 100) + "s";
+      els.viz.appendChild(b);
+    }
+  })();
+
+  // Read a global set by iCUE, falling back to a default (for browser preview)
+  function setting(name, fallback) {
+    try {
+      var v = window[name];
+      return (v === undefined || v === null || v === "") ? fallback : v;
+    } catch (e) { return fallback; }
+  }
+  function truthy(v) { return v === true || v === "true" || v === 1; }
+
+  function applySettings() {
+    var root = document.documentElement.style;
+    root.setProperty("--accent", setting("accentColor", "#1DB954"));
+    root.setProperty("--bg", setting("backgroundColor", "#121212"));
+    var bgArt = setting("backgroundStyle", "art") !== "solid";
+    els.body.classList.toggle("bg-art", bgArt);
+    els.body.classList.toggle("bg-solid", !bgArt);
+    els.body.classList.toggle("hide-album", !truthy(setting("showAlbum", true)));
+    els.body.classList.toggle("hide-viz", !truthy(setting("showVisualizer", true)));
+    refreshMarquees();
+  }
+
+  // Marquee: scroll a line only when its text overflows
+  function setLine(el, text) {
+    var span = el.firstElementChild;
+    if (span.textContent !== text) span.textContent = text;
+  }
+  function refreshMarquees() {
+    var allow = truthy(setting("scrollLongText", true));
+    [els.title, els.artist, els.album].forEach(function (el) {
+      el.classList.remove("scrolling");
+      var span = el.firstElementChild;
+      var overflow = span.scrollWidth - el.clientWidth;
+      if (allow && overflow > 2) {
+        el.classList.add("scrolling");
+        // shift by text width + gap so it loops seamlessly-ish back to start
+        var shift = -(span.scrollWidth - el.clientWidth + 16);
+        el.style.setProperty("--shift", shift + "px");
+        el.style.setProperty("--dur", Math.max(6, Math.abs(shift) / 18 + 4) + "s");
+      }
+    });
+  }
+
+  var state = { song: null, artist: null, album: null, thumb: null, playing: null };
+
+  function render(s) {
+    var changedText = s.song !== state.song || s.artist !== state.artist || s.album !== state.album;
+    var hasTrack = !!(s.song || s.artist);
+
+    els.body.classList.toggle("idle", !hasTrack);
+
+    if (changedText) {
+      setLine(els.title, s.song || "Unknown track");
+      setLine(els.artist, s.artist || "");
+      setLine(els.album, s.album || "");
+      refreshMarquees();
+    }
+
+    if (s.thumb !== state.thumb) {
+      if (s.thumb) {
+        var url = 'url("' + s.thumb + '")';
+        els.cover.style.backgroundImage = url;
+        els.backdrop.style.backgroundImage = url;
+        els.cover.classList.remove("placeholder");
+        els.body.classList.add("has-art");
+      } else {
+        els.cover.style.backgroundImage = "";
+        els.backdrop.style.backgroundImage = "";
+        els.cover.classList.add("placeholder");
+        els.body.classList.remove("has-art");
+      }
+    }
+
+    if (s.playing !== state.playing) {
+      els.body.classList.toggle("paused", !s.playing);
+      els.statusText.textContent = s.playing ? "Now playing" : "Paused";
+      els.statusIcon.setAttribute("d", s.playing ? PLAY_ICON : PAUSE_ICON);
+    }
+
+    state = s;
+  }
+
+  // ---- iCUE Media plugin wiring ----
+  var media = null;
+
+  function readMedia() {
+    if (!media) return;
+    render({
+      song: media.songName || "",
+      artist: media.artist || "",
+      album: media.album || "",
+      thumb: media.thumbnail || "",
+      playing: !!media.isPlaying
+    });
+  }
+
+  function onMediaReady() {
+    media = window.plugins && window.plugins.Mediadataprovider;
+    if (!media) return;
+    ["songNameChanged", "artistChanged", "albumChanged", "thumbnailChanged", "isPlayingChanged"]
+      .forEach(function (sig) {
+        try { if (media[sig] && media[sig].connect) media[sig].connect(readMedia); } catch (e) {}
+      });
+    readMedia();
+  }
+
+  // Global hooks iCUE looks for
+  window.pluginMediadataproviderEvents = { onInitialized: onMediaReady };
+  window.icueEvents = {
+    onICUEInitialized: function () { applySettings(); onMediaReady(); },
+    onDataUpdated: applySettings
+  };
+
+  applySettings();
+
+  if (window.iCUE_initialized) { applySettings(); }
+  if (window.pluginMediadataprovider_initialized) { onMediaReady(); }
+
+  // Safety net: poll in case a change signal is missed
+  setInterval(function () {
+    if (!media && window.plugins && window.plugins.Mediadataprovider) onMediaReady();
+    readMedia();
+  }, 1500);
+
+  // ---- Browser preview (no iCUE) ----
+  // Open index.html?demo in a browser to see sample data.
+  // Outside iCUE (no iCUE global or plugins), show sample data. Real media data overrides it.
+  if (/[?&]demo\b/.test(location.search) || (typeof window.iCUE === "undefined" && !window.plugins)) {
+    var demoArt = "data:image/svg+xml;utf8," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#ff5f6d"/><stop offset="1" stop-color="#5b3cc4"/></linearGradient></defs>' +
+      '<rect width="100" height="100" fill="url(#g)"/><circle cx="50" cy="50" r="22" fill="rgba(0,0,0,.25)"/></svg>');
+    var demo = { song: "Midnight Drive Through the Neon City Lights", artist: "The Night Owls", album: "Afterglow (Deluxe Edition)", thumb: demoArt, playing: true };
+    render(demo);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === " ") { demo = Object.assign({}, demo, { playing: !demo.playing }); render(demo); }
+      if (e.key === "i") { render({ song: "", artist: "", album: "", thumb: "", playing: false }); }
+    });
+  }
+})();
+</script>
+</body>
+</html>
