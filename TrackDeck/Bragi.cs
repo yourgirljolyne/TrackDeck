@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 public sealed class BragiException(string message) : Exception(message);
 

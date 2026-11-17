@@ -2,12 +2,12 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using Microsoft.Win32;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 /// <summary>Tray app: watches Windows media and rewrites the card when the track (or play state) changes.</summary>
 public sealed class TrayApp : ApplicationContext
 {
-    private static readonly string Dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NowPlayingCard");
+    private static readonly string Dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TrackDeck");
     private static readonly string SettingsPath = Path.Combine(Dir, "settings.txt");
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
@@ -27,7 +27,7 @@ public sealed class TrayApp : ApplicationContext
     private bool _showPaused = true;
     private bool _restoreWhenIdle = true;
 
-    private readonly ToolStripMenuItem _statusItem = new("Starting…") { Enabled = false };
+    private readonly ToolStripMenuItem _statusItem = new("Warming up…") { Enabled = false };
     private readonly ToolStripMenuItem _spotifyOnlyItem = new("Spotify only") { CheckOnClick = true };
     private readonly ToolStripMenuItem _showPausedItem = new("Show paused state") { CheckOnClick = true };
     private readonly ToolStripMenuItem _restoreIdleItem = new("Restore my screen when nothing plays") { CheckOnClick = true };
@@ -63,7 +63,7 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add("Open log", null, (_, _) => { try { System.Diagnostics.Process.Start("notepad.exe", LogPath); } catch { } });
         menu.Items.Add("Exit (restore my screen)", null, async (_, _) => await ExitAsync());
 
-        _tray = new NotifyIcon { Icon = MakeIcon(), Text = "Now Playing Card", Visible = true, ContextMenuStrip = menu };
+        _tray = new NotifyIcon { Icon = MakeIcon(), Text = "TrackDeck", Visible = true, ContextMenuStrip = menu };
         _timer.Tick += async (_, _) => await TickAsync();
         _timer.Start();
         Log("started");
@@ -79,7 +79,7 @@ public sealed class TrayApp : ApplicationContext
 
             if (np == null)
             {
-                SetStatus(_media.SpotifyOnly ? "Spotify isn't playing anything" : "Nothing playing");
+                SetStatus(_media.SpotifyOnly ? "Spotify is quiet. Press play!" : "Nothing playing. Suspiciously quiet.");
                 _pendingKey = null;
                 _idleSince ??= DateTime.Now;
                 if (_restoreWhenIdle && !_restored && DateTime.Now - _idleSince > TimeSpan.FromSeconds(60))
@@ -184,14 +184,14 @@ public sealed class TrayApp : ApplicationContext
     private static bool IsStartupEnabled()
     {
         using var k = Registry.CurrentUser.OpenSubKey(RunKey);
-        return k?.GetValue("NowPlayingCard") != null;
+        return k?.GetValue("TrackDeck") != null;
     }
 
     private static void SetStartup(bool on)
     {
         using var k = Registry.CurrentUser.CreateSubKey(RunKey);
-        if (on) k.SetValue("NowPlayingCard", $"\"{Environment.ProcessPath}\"");
-        else k.DeleteValue("NowPlayingCard", false);
+        if (on) k.SetValue("TrackDeck", $"\"{Environment.ProcessPath}\"");
+        else k.DeleteValue("TrackDeck", false);
     }
 
     private static string LogPath => Path.Combine(Dir, "log.txt");

@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 /// <summary>File ids and formats used by the keyboard's screen (from Corsair Web Hub).</summary>
 public static class ScreenFiles

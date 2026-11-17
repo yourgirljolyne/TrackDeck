@@ -1,6 +1,6 @@
 using Windows.Media.Control;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 public sealed record NowPlaying(string Title, string Artist, string Album, bool IsPlaying, byte[]? Cover, string Source)
 {

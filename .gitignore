@@ -4,7 +4,7 @@ dist/
 *.user
 .vs/
 
-# Device backups made by `NowPlayingCard backup` (contain your keyboard's own files)
+# Device backups made by `TrackDeck backup` (contain your keyboard's own files)
 backups/
 
 # Packaged widgets (attach these to releases instead)

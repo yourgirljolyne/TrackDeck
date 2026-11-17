@@ -1,10 +1,11 @@
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 internal static class Program
 {
     [STAThread]
     private static int Main(string[] args)
     {
+        MigrateFromOldName();
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
         if (cmd is "probe" or "list" or "backup" or "render" or "show" or "restore")
         {
@@ -21,11 +22,35 @@ internal static class Program
         }
 
         // Default: tray app, one instance only.
-        using var mutex = new Mutex(true, "NowPlayingCard.SingleInstance", out bool first);
+        using var mutex = new Mutex(true, "TrackDeck.SingleInstance", out bool first);
         if (!first) return 0;
         ApplicationConfiguration.Initialize();
         Application.Run(new TrayApp());
         return 0;
+    }
+
+    /// <summary>The app was called NowPlayingCard before; carry over its data and startup entry once.</summary>
+    private static void MigrateFromOldName()
+    {
+        try
+        {
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string oldDir = Path.Combine(local, "NowPlayingCard"), newDir = Path.Combine(local, "TrackDeck");
+            if (Directory.Exists(oldDir) && !Directory.Exists(newDir))
+            {
+                Directory.CreateDirectory(newDir);
+                foreach (var f in Directory.GetFiles(oldDir))
+                    File.Copy(f, Path.Combine(newDir, Path.GetFileName(f)));
+            }
+
+            using var run = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+            if (run?.GetValue("NowPlayingCard") != null)
+            {
+                run.DeleteValue("NowPlayingCard", false);
+                run.SetValue("TrackDeck", $"\"{Environment.ProcessPath}\"");
+            }
+        }
+        catch { /* best effort */ }
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]

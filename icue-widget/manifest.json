@@ -1,8 +1,8 @@
 {
-  "author": "Spoti",
-  "id": "com.spoti.nowplaying",
-  "name": "Now Playing",
-  "description": "A compact Spotify-style now playing display with album art, track info and a live visualizer.",
+  "author": "YourGirlJolyne",
+  "id": "com.trackdeck.widget",
+  "name": "TrackDeck",
+  "description": "What's playing, on your keyboard: album art, track info and a little visualizer.",
   "version": "1.0.0",
   "preview_icon": "resources/icon.svg",
   "min_app_version": "5.47",

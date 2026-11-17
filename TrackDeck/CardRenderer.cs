@@ -4,7 +4,7 @@ using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Runtime.InteropServices;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 /// <summary>Draws the 248x170 now-playing card.</summary>
 public static class CardRenderer

@@ -1,6 +1,6 @@
-# NowPlayingCard (source)
+# TrackDeck (source)
 
-C# / .NET 10 WinForms tray app. No NuGet packages.
+C# / .NET 10 WinForms tray app. No NuGet packages, no iCUE, no drama.
 
 | File | What it does |
 |---|---|
@@ -15,4 +15,4 @@ C# / .NET 10 WinForms tray app. No NuGet packages.
 
 Files written on the keyboard: `32700` (screen config), `32701` (image), `62` (active screen pointer), and once, `61` (resource map). The app never sends lighting, key assignment, profile or factory reset commands.
 
-App data (settings, log, saved original screen): `%LOCALAPPDATA%\NowPlayingCard\`.
+App data (settings, log, saved original screen): `%LOCALAPPDATA%\TrackDeck\`.

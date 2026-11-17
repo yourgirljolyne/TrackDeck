@@ -1,4 +1,4 @@
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 /// <summary>
 /// Puts a card on the keyboard screen using the same file layout as Corsair Web Hub.
@@ -12,7 +12,7 @@ public sealed class ScreenController : IDisposable
     private bool _prepared;
     public Action<string>? Log { get; set; }
 
-    private string StateDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NowPlayingCard");
+    private string StateDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TrackDeck");
 
     private async Task<Bragi> ConnectAsync()
     {

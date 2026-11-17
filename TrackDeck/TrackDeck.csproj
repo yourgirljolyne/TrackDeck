@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>NowPlayingCard</AssemblyName>
-    <RootNamespace>NowPlayingCard</RootNamespace>
+    <AssemblyName>TrackDeck</AssemblyName>
+    <RootNamespace>TrackDeck</RootNamespace>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 

@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace NowPlayingCard;
+namespace TrackDeck;
 
 /// <summary>Minimal Windows HID access via SetupAPI + hid.dll. No external packages.</summary>
 public sealed class HidDevice : IDisposable

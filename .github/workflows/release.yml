@@ -19,25 +19,25 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Publish
-        working-directory: NowPlayingCard
+        working-directory: TrackDeck
         run: dotnet publish -c Release -r win-x64 -o dist -p:PublishSingleFile=true -p:SelfContained=false -p:DebugType=none
 
       - name: Package iCUE widget
         shell: pwsh
-        run: Compress-Archive -Path icue-widget/* -DestinationPath now-playing.zip; Move-Item now-playing.zip now-playing.icuewidget
+        run: Compress-Archive -Path icue-widget/* -DestinationPath trackdeck-widget.zip; Move-Item trackdeck-widget.zip trackdeck.icuewidget
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: NowPlayingCard
+          name: TrackDeck
           path: |
-            NowPlayingCard/dist/NowPlayingCard.exe
-            now-playing.icuewidget
+            TrackDeck/dist/TrackDeck.exe
+            trackdeck.icuewidget
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            NowPlayingCard/dist/NowPlayingCard.exe
-            now-playing.icuewidget
+            TrackDeck/dist/TrackDeck.exe
+            trackdeck.icuewidget

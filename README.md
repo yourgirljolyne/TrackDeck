@@ -1,61 +1,67 @@
-# Now Playing Card for the VANGUARD AIR 99
+# TrackDeck
 
-Show what Spotify is playing on the screen of a Corsair **VANGUARD AIR 99** keyboard, **without iCUE**.
+**What's playing, on your keyboard. No iCUE required.**
 
-![Card preview](docs/images/card.png)
+![TrackDeck card on the keyboard screen](docs/images/card.png)
 
-A tiny Windows tray app reads the current track from Windows, draws a 248×170 card (cover, title, artist, album, play/pause) and sends it to the keyboard over USB whenever the song changes. Your lighting, macros, key assignments and profiles are never touched.
+## Why this exists
 
-> Not affiliated with or endorsed by Corsair. The screen protocol was worked out from Corsair's public Web Hub app. Use at your own risk.
+We all know iCUE sucks. So...
 
-## Download and run
+TrackDeck is the alternative: a tiny tray app that shows what Spotify is playing (cover, title, artist, album, play/pause) on the keyboard's screen, and does **nothing else**. It doesn't touch your lighting, your macros, your key assignments or your profiles. It doesn't need iCUE running, installed, or emotionally present.
 
-1. Get `NowPlayingCard.exe` from the [Releases](../../releases) page, or build it (below).
+> Not affiliated with or endorsed by Corsair. The screen protocol was worked out from Corsair's own public Web Hub app. Use at your own risk.
+
+## Get it running
+
+1. Grab `TrackDeck.exe` from [Releases](../../releases), or build it yourself (below).
 2. Install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) if you don't have it.
-3. Connect the keyboard with the **USB cable** and **close iCUE**.
-4. Run `NowPlayingCard.exe`. A green icon appears in the tray. Play something in Spotify.
+3. Plug the keyboard in with the **USB cable** and **close iCUE**. Fully. Check the tray. It hides.
+4. Run `TrackDeck.exe`. A little green icon appears in the tray. Press play in Spotify.
 
-Right-click the tray icon for options: Spotify only or any media app, show the paused state, restore your previous screen when nothing plays, start with Windows. **Exit** puts your previous screen back.
+Change the song, and the screen follows a second or two later.
+
+Right-click the tray icon for the knobs: Spotify only (or any app that tells Windows what's playing), show the paused state, put your old screen back when nothing plays, start with Windows. **Exit** puts your previous screen back, like it was never here.
 
 ## How it works
 
-- **Media:** Windows' System Media Transport Controls (the same info as the volume flyout), preferring Spotify.
-- **Keyboard:** Corsair's "Bragi" HID protocol on the vendor interface (usage page `0xFF42`). The card is stored as an image file on the keyboard, and the screen is pointed at it, the same way Web Hub uploads images.
-- **Flash wear:** the screen lives in flash storage, so the card is rewritten only when the track or play state changes (about one 84 KB write per song, at most one write every 3 seconds). No animations or progress bar for that reason.
+- **Music:** Windows already knows what's playing (it's what powers the media pop-up when you press a volume key). TrackDeck asks Windows, prefers Spotify, and draws a 248×170 card.
+- **Connectivity:** it talks to the keyboard over USB using Corsair's "Bragi" protocol, the same one Corsair's browser-based Web Hub uses. The card is saved as an image on the keyboard and the screen is pointed at it.
+- **Memory:** the screen reads from the keyboard's flash memory, and flash doesn't love being rewritten 30 times a second. So TrackDeck writes once per song (about 84 KB) and never more than once every 3 seconds.
 
-Full protocol notes: [docs/vanguard-screen-protocol.md](docs/vanguard-screen-protocol.md).
+The nerdy details: [docs/vanguard-screen-protocol.md](docs/vanguard-screen-protocol.md).
 
-## Build
+## Build it yourself
 
-Requires the .NET 10 SDK on Windows.
+Needs the .NET 10 SDK on Windows. No NuGet packages, no surprises.
 
 ```
-cd NowPlayingCard
+cd TrackDeck
 dotnet publish -c Release -r win-x64 -o dist -p:PublishSingleFile=true -p:SelfContained=false
 ```
 
 ## Command line
 
 ```
-NowPlayingCard list            list the keyboard's HID interfaces (sends nothing)
-NowPlayingCard probe           read screen properties (changes nothing)
-NowPlayingCard backup          save the screen files it uses to backups\
-NowPlayingCard render x.png    draw the current card to a PNG (add --sample for demo data)
-NowPlayingCard show            put the current card on the screen once
-NowPlayingCard restore         put your previous screen back
+TrackDeck list            list the keyboard's USB interfaces (sends nothing)
+TrackDeck probe           read the screen's properties (changes nothing)
+TrackDeck backup          save the screen files TrackDeck uses to backups\
+TrackDeck render x.png    draw the current card to a PNG (add --sample for demo data)
+TrackDeck show            put the current card on the screen once
+TrackDeck restore         put your previous screen back
 ```
 
-Running `backup` once before first use is a good idea.
+Running `backup` once before you start is a good idea. Peace of mind is free.
 
-## Also in this repo
+## Also in here
 
-[`icue-widget/`](icue-widget) is an HTML "Now Playing" widget for **iCUE**'s widget system (320×170, live updates, blurred album-art background), for people who do use iCUE.
+[`icue-widget/`](icue-widget) is a TrackDeck widget for **iCUE**'s own widget system, with live updates, a blurred album-art background and a little equalizer. For those who still run iCUE. We don't judge. Much.
 
-## Limitations
+## Known limits
 
-- Tested on the VANGUARD AIR 99 over USB only. The wireless receiver and other Vanguard models are not supported yet (they likely use the same protocol with different IDs).
-- iCUE and this app will fight over the keyboard; run one or the other.
+- Tested on the VANGUARD AIR 99 over the USB cable. The wireless receiver and other Vanguard models aren't supported yet (they probably speak the same language with a different accent).
+- iCUE and TrackDeck will fight over the keyboard. Pick one. (You know which.)
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Do what you like with it.
