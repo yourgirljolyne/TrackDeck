@@ -81,3 +81,12 @@ Buffer index 0 = "common file index".
 ## Also seen
 
 Web Hub talks to a running iCUE over a local WebSocket (`icueWebSocketWorker`) with `releaseDevice` / `restoreDevice` messages so the two don't fight over the keyboard.
+
+## Wireless (tested 2026-11-18)
+
+- The keyboard pairs to a **SLIPSTREAM v2** receiver (`0x2B1B`, Bragi v1.5 per Web Hub). Its vendor channel (`0xFF42` usage 1, 64-byte reports) never answers: interrupt writes hang, and control-transfer writes (`HidD_SetOutputReport`) are accepted but get no reply, with or without a session. This happened with iCUE, SignalRGB and Stream Deck all closed and after replugging.
+- Corsair Web Hub can't reach the keyboard through this receiver either.
+- The older **SLIPSTREAM** receiver (`0x2B00`) does answer, in Bragi v1.0 (2-byte header `[0x08 | sub, cmd]`, status at byte 2, data from byte 3). Property 54 returns a bitmask of paired devices; the device behind it here had no screen (likely a mouse).
+- Over Bluetooth LE the keyboard shows up as VID `0x0A82` / PID `0x2B21`; no vendor channel was available while it was on the receiver.
+
+Conclusion: screen updates need the USB cable.

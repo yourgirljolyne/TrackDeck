@@ -23,6 +23,7 @@ public sealed class TrayApp : ApplicationContext
     private DateTime _lastWrite = DateTime.MinValue;
     private DateTime? _idleSince;
     private bool _restored = true;
+    private string? _keyboardProblem; // e.g. "Keyboard is wireless…"; shown instead of the track until fixed
 
     private bool _showPaused = true;
     private bool _restoreWhenIdle = true;
@@ -90,7 +91,7 @@ public sealed class TrayApp : ApplicationContext
 
             if (!_showPaused) np = np with { IsPlaying = true };
             string key = np.Key;
-            SetStatus($"{(np.IsPlaying ? "▶" : "⏸")} {np.Title} — {np.Artist}");
+            SetStatus(_keyboardProblem ?? $"{(np.IsPlaying ? "▶" : "⏸")} {np.Title} — {np.Artist}");
             if (key == _shownKey) { _pendingKey = null; return; }
 
             // Wait for the metadata to settle (title, then cover, often arrive separately),
@@ -105,13 +106,22 @@ public sealed class TrayApp : ApplicationContext
             _pendingKey = null;
             _lastWrite = DateTime.Now;
             _restored = false;
+            if (_keyboardProblem != null) { _keyboardProblem = null; Log("keyboard connected again"); }
+            SetStatus($"{(np.IsPlaying ? "▶" : "⏸")} {np.Title} — {np.Artist}");
             Log($"shown: {np.Title} — {np.Artist} ({(np.IsPlaying ? "playing" : "paused")})");
         }
         catch (Exception e)
         {
-            SetStatus("Keyboard error: " + e.Message);
-            Log("error: " + e);
-            _lastWrite = DateTime.Now; // back off before retrying
+            string msg = e is BragiException ? e.Message : "Keyboard error: " + e.Message;
+            if (msg != _keyboardProblem)
+            {
+                // Say it once (log + notification), not on every retry.
+                Log(e is BragiException ? msg : "error: " + e);
+                _tray.ShowBalloonTip(5000, "TrackDeck", msg, ToolTipIcon.Info);
+            }
+            _keyboardProblem = msg;
+            SetStatus(msg);
+            _lastWrite = DateTime.Now.AddSeconds(7); // retry about every 10 seconds
         }
         finally { _busy.Release(); }
     }

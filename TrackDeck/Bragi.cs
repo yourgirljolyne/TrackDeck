@@ -16,6 +16,8 @@ public sealed class Bragi : IDisposable
     public const ushort PidAir99Wired = 0x2B21;
     public const ushort UsagePage = 0xFF42;
     public const ushort UsageId = 0x01;
+    /// <summary>SLIPSTREAM and SLIPSTREAM v2 wireless receivers (only used to explain why the screen can't be reached).</summary>
+    public static readonly ushort[] ReceiverIds = [0x2B00, 0x2B1B];
 
     // Command ids (Web Hub constants)
     private const byte CmdSet = 1, CmdGet = 2, CmdUnbind = 5, CmdWriteBegin = 6, CmdWriteCont = 7,

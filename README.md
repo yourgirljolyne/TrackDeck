@@ -59,7 +59,8 @@ Running `backup` once before you start is a good idea. Peace of mind is free.
 
 ## Known limits
 
-- Tested on the VANGUARD AIR 99 over the USB cable. The wireless receiver and other Vanguard models aren't supported yet (they probably speak the same language with a different accent).
+- **The screen only updates over the USB cable.** The SLIPSTREAM wireless receiver doesn't pass screen commands on to the keyboard (Corsair's own Web Hub can't reach it wirelessly either). Keep typing wirelessly if you like; TrackDeck just needs the cable plugged in to change the card, and tells you when it isn't.
+- Tested on the VANGUARD AIR 99. Other Vanguard models aren't supported yet (they probably speak the same language with a different accent).
 - iCUE and TrackDeck will fight over the keyboard. Pick one. (You know which.)
 
 ## License

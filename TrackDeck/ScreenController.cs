@@ -17,11 +17,23 @@ public sealed class ScreenController : IDisposable
     private async Task<Bragi> ConnectAsync()
     {
         if (_bragi != null) return _bragi;
-        _bragi = Bragi.Open() ?? throw new BragiException("Keyboard not found. Is it connected by USB cable?");
+        _bragi = Bragi.Open() ?? throw new BragiException(NotFoundMessage());
         _bragi.Log = Log;
         await _bragi.StartSessionAsync();
         _prepared = false;
         return _bragi;
+    }
+
+    /// <summary>
+    /// The screen can only be updated over the USB cable: the SLIPSTREAM receivers don't pass these
+    /// commands on (Corsair's own Web Hub can't reach the screen wirelessly either).
+    /// </summary>
+    private static string NotFoundMessage()
+    {
+        bool receiver = Bragi.ReceiverIds.Any(pid => HidDevice.Describe(Bragi.Vid, pid).Any());
+        return receiver
+            ? "Keyboard is wireless. Plug in the USB cable to update the screen."
+            : "Keyboard not found. Plug it in with the USB cable.";
     }
 
     /// <summary>One-time setup: remember the user's screen, make sure our config + map entry exist.</summary>
