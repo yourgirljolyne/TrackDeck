@@ -54,7 +54,7 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add(_statusItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Refresh card now", null, (_, _) => { _shownKey = null; _lastWrite = DateTime.MinValue; });
-        menu.Items.Add("Restore my screen", null, async (_, _) => await RestoreAsync());
+        menu.Items.Add("Restore my screen", null, async (_, _) => await RestoreFromMenuAsync());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_spotifyOnlyItem);
         menu.Items.Add(_showPausedItem);
@@ -126,12 +126,19 @@ public sealed class TrayApp : ApplicationContext
         finally { _busy.Release(); }
     }
 
-    private async Task RestoreAsync()
+    /// <summary>Puts the previous screen back. Returns null on success, or why it couldn't.</summary>
+    private async Task<string?> RestoreAsync()
     {
         await _busy.WaitAsync();
-        try { await RestoreCoreAsync(); }
-        catch (Exception e) { Log("restore error: " + e.Message); }
+        try { await RestoreCoreAsync(); return null; }
+        catch (Exception e) { Log("restore error: " + e.Message); return e.Message; }
         finally { _busy.Release(); }
+    }
+
+    private async Task RestoreFromMenuAsync()
+    {
+        var error = await RestoreAsync();
+        _tray.ShowBalloonTip(4000, "TrackDeck", error == null ? "Your previous screen is back." : "Couldn't restore your screen: " + error, ToolTipIcon.Info);
     }
 
     private async Task RestoreCoreAsync()
@@ -141,12 +148,30 @@ public sealed class TrayApp : ApplicationContext
         _shownKey = null;
     }
 
+    private bool _exiting;
+
     private async Task ExitAsync()
     {
+        if (_exiting) return;
+        _exiting = true;
         _timer.Stop();
-        await RestoreAsync();
+        Log("exiting");
+
+        // Put the previous screen back, but never let a stuck keyboard keep TrackDeck alive.
+        var restore = RestoreAsync();
+        string? error = await Task.WhenAny(restore, Task.Delay(15000)) == restore
+            ? await restore
+            : "the keyboard didn't answer in time.";
+        await _screen.CloseAsync();
+
         _tray.Visible = false;
-        _screen.Dispose();
+        _tray.Dispose();
+        if (error != null)
+            MessageBox.Show(
+                $"TrackDeck closed, but couldn't put your previous screen back:\n{error}\n\n" +
+                "Plug in the USB cable, start TrackDeck again and choose \"Restore my screen\" (or Exit).",
+                "TrackDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        Log("exited");
         ExitThread();
     }
 

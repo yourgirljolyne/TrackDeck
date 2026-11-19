@@ -86,42 +86,48 @@ public sealed class ScreenController : IDisposable
         });
     }
 
-    /// <summary>Puts back whatever the screen showed before we started.</summary>
+    /// <summary>
+    /// Re-selects the screen that was selected when TrackDeck took over (an image or a GIF entry),
+    /// the same way Web Hub selects a screen: copy its entry into the active-screen file.
+    /// </summary>
     public async Task RestoreAsync()
     {
-        if (_originalActive == null)
-        {
-            string origPath = Path.Combine(StateDir, "original-active-screen.bin");
-            if (File.Exists(origPath)) _originalActive = File.ReadAllBytes(origPath);
-        }
-        if (_originalActive == null) return;
+        string origPath = Path.Combine(StateDir, "original-active-screen.bin");
+        var target = _originalActive ?? (File.Exists(origPath) ? File.ReadAllBytes(origPath) : null)
+            ?? throw new BragiException("TrackDeck doesn't know which screen you had before.");
         await WithReconnect(async b =>
         {
-            await b.WriteFileAsync(ScreenFiles.ActiveScreen, _originalActive);
-            Log?.Invoke("restored original screen");
+            await b.WriteFileAsync(ScreenFiles.ActiveScreen, target);
+            Log?.Invoke($"restored previous screen ({(target[0] == ScreenFiles.ConfigTypeGif ? "GIF" : "image")})");
         });
     }
 
+    /// <summary>Runs an action; if an existing connection fails (e.g. cable replugged), reconnects once and retries.</summary>
     private async Task WithReconnect(Func<Bragi, Task> action)
     {
-        for (int attempt = 0; ; attempt++)
+        bool hadConnection = _bragi != null;
+        try { await action(await ConnectAsync()); }
+        catch (Exception e) when (hadConnection && e is BragiException or IOException)
         {
-            try { await action(await ConnectAsync()); return; }
-            catch (Exception e) when (attempt == 0 && e is BragiException or IOException)
-            {
-                Log?.Invoke("retrying after: " + e.Message);
-                _bragi?.Dispose();
-                _bragi = null;
-            }
+            Log?.Invoke("reconnecting after: " + e.Message);
+            _bragi?.Dispose();
+            _bragi = null;
+            await action(await ConnectAsync());
         }
     }
 
+    /// <summary>Ends the keyboard session (best effort, never waits more than 2 s) and releases the device.</summary>
+    public async Task CloseAsync()
+    {
+        if (_bragi == null) return;
+        try { await Task.WhenAny(_bragi.StopSessionAsync(), Task.Delay(2000)); } catch { }
+        Dispose();
+    }
+
+    /// <summary>Releases the device without talking to it. Never blocks.</summary>
     public void Dispose()
     {
-        if (_bragi != null)
-        {
-            try { _bragi.StopSessionAsync().GetAwaiter().GetResult(); } catch { }
-            _bragi.Dispose();
-        }
+        _bragi?.Dispose();
+        _bragi = null;
     }
 }

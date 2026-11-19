@@ -7,11 +7,13 @@ internal static class Program
     {
         MigrateFromOldName();
         string cmd = args.Length > 0 ? args[0].ToLowerInvariant() : "";
-        if (cmd is "probe" or "list" or "backup" or "render" or "show" or "restore")
+        if (cmd is "probe" or "list" or "backup" or "render" or "show" or "restore" or "screens" or "select")
         {
             AttachConsole();
             return cmd switch
             {
+                "screens" => Diagnostics.Screens().GetAwaiter().GetResult(),
+                "select" => Diagnostics.Select(ushort.Parse(args.ElementAtOrDefault(1) ?? "0")).GetAwaiter().GetResult(),
                 "show" => Diagnostics.Show().GetAwaiter().GetResult(),
                 "restore" => Diagnostics.Restore().GetAwaiter().GetResult(),
                 "list" => Diagnostics.List(),
@@ -22,9 +24,14 @@ internal static class Program
         }
 
         // Default: tray app, one instance only.
-        using var mutex = new Mutex(true, "TrackDeck.SingleInstance", out bool first);
-        if (!first) return 0;
         ApplicationConfiguration.Initialize();
+        using var mutex = new Mutex(true, "TrackDeck.SingleInstance", out bool first);
+        if (!first)
+        {
+            MessageBox.Show("TrackDeck is already running. Look for the green icon in the tray (it may be tucked under the ^ arrow).",
+                "TrackDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return 0;
+        }
         Application.Run(new TrayApp());
         return 0;
     }
@@ -129,6 +136,7 @@ internal static class Diagnostics
         using var card = CardRenderer.Render(np);
         using var sc = new ScreenController { Log = s => Console.WriteLine("  · " + s) };
         await sc.ShowAsync(card);
+        await sc.CloseAsync();
         Console.WriteLine($"Shown: {np.Title} — {np.Artist}");
         return 0;
     }
@@ -157,6 +165,46 @@ internal static class Diagnostics
     {
         using var sc = new ScreenController { Log = s => Console.WriteLine("  · " + s) };
         await sc.RestoreAsync();
+        await sc.CloseAsync();
+        return 0;
+    }
+
+    /// <summary>Shows a stored screen entry (copies it into the active-screen file, like Web Hub does).</summary>
+    public static async Task<int> Select(ushort entryId)
+    {
+        using var b = Bragi.Open();
+        if (b == null) { Console.WriteLine("Keyboard not found. Plug in the USB cable."); return 1; }
+        await b.StartSessionAsync();
+        var entry = await b.ReadFileAsync(entryId);
+        if (entry is not { Length: > 0 } || entry[0] is not (56 or 102)) { Console.WriteLine($"{entryId} is not an image or GIF entry."); return 1; }
+        await b.WriteFileAsync(ScreenFiles.ActiveScreen, entry);
+        await b.StopSessionAsync();
+        Console.WriteLine($"Selected {entryId} ({(entry[0] == 102 ? "GIF" : "image")}).");
+        return 0;
+    }
+
+    /// <summary>Lists screen entries stored on the keyboard (file ids 28000-29000). Read-only.</summary>
+    public static async Task<int> Screens()
+    {
+        using var b = Bragi.Open();
+        if (b == null) { Console.WriteLine("Keyboard not found. Plug in the USB cable."); return 1; }
+        await b.StartSessionAsync();
+        for (ushort id = 28000; id <= 29000; id++)
+        {
+            byte[]? d;
+            try { d = await b.ReadFileAsync(id); } catch (BragiException) { continue; }
+            if (d is not { Length: > 1 }) continue;
+            string kind = d[0] switch { 56 => "image entry", 102 => "GIF entry", 72 => "image data", 69 => "GIF data", _ => $"type {d[0]}" };
+            string detail = d[0] switch
+            {
+                56 => $"-> image {BitConverter.ToUInt16(d, 2)}",
+                102 when d.Length >= 6 => $"delay {BitConverter.ToUInt16(d, 2)} ms, {BitConverter.ToUInt16(d, 4)} frames: " +
+                    string.Join(",", Enumerable.Range(0, (d.Length - 6) / 2).Select(i => BitConverter.ToUInt16(d, 6 + i * 2)).Take(12)) + "…",
+                _ => Convert.ToHexString(d.AsSpan(0, Math.Min(16, d.Length)))
+            };
+            if (d[0] != 72) Console.WriteLine($"{id}: {kind,-12} {d.Length,6} bytes  {detail}");
+        }
+        await b.StopSessionAsync();
         return 0;
     }
 

@@ -21,7 +21,7 @@ TrackDeck is the alternative: a tiny tray app that shows what Spotify is playing
 
 Change the song, and the screen follows a second or two later.
 
-Right-click the tray icon for the knobs: Spotify only (or any app that tells Windows what's playing), show the paused state, put your old screen back when nothing plays, start with Windows. **Exit** puts your previous screen back, like it was never here.
+Right-click the tray icon for the knobs: Spotify only (or any app that tells Windows what's playing), show the paused state, put your old screen back when nothing plays, start with Windows. **Exit** puts back whatever screen you had selected (image or GIF), like it was never here.
 
 ## How it works
 
@@ -49,6 +49,8 @@ TrackDeck backup          save the screen files TrackDeck uses to backups\
 TrackDeck render x.png    draw the current card to a PNG (add --sample for demo data)
 TrackDeck show            put the current card on the screen once
 TrackDeck restore         put your previous screen back
+TrackDeck screens         list the images and GIFs stored on the keyboard (takes ~30 s)
+TrackDeck select <id>     show one of them, e.g. if the wrong screen came back
 ```
 
 Running `backup` once before you start is a good idea. Peace of mind is free.
