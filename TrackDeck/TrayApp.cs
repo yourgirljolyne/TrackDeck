@@ -27,11 +27,14 @@ public sealed class TrayApp : ApplicationContext
 
     private bool _showPaused = true;
     private bool _restoreWhenIdle = true;
+    private int _idleSeconds = 60;    // paused or nothing playing for this long → put the user's screen back
+    private const int MinIdleSeconds = 5, MaxIdleSeconds = 24 * 3600;
 
     private readonly ToolStripMenuItem _statusItem = new("Warming up…") { Enabled = false };
     private readonly ToolStripMenuItem _spotifyOnlyItem = new("Spotify only") { CheckOnClick = true };
     private readonly ToolStripMenuItem _showPausedItem = new("Show paused state") { CheckOnClick = true };
-    private readonly ToolStripMenuItem _restoreIdleItem = new("Restore my screen when nothing plays") { CheckOnClick = true };
+    private readonly ToolStripMenuItem _restoreIdleItem = new("Restore my screen when idle") { CheckOnClick = true };
+    private readonly ToolStripMenuItem _idleTimeItem = new();
     private readonly ToolStripMenuItem _startupItem = new("Start with Windows") { CheckOnClick = true };
 
     public TrayApp()
@@ -47,7 +50,9 @@ public sealed class TrayApp : ApplicationContext
 
         _spotifyOnlyItem.CheckedChanged += (_, _) => { _media.SpotifyOnly = _spotifyOnlyItem.Checked; _shownKey = null; SaveSettings(); };
         _showPausedItem.CheckedChanged += (_, _) => { _showPaused = _showPausedItem.Checked; _shownKey = null; SaveSettings(); };
-        _restoreIdleItem.CheckedChanged += (_, _) => { _restoreWhenIdle = _restoreIdleItem.Checked; SaveSettings(); };
+        _restoreIdleItem.CheckedChanged += (_, _) => { _restoreWhenIdle = _restoreIdleItem.Checked; UpdateIdleTimeItem(); SaveSettings(); };
+        _idleTimeItem.Click += (_, _) => AskIdleSeconds();
+        UpdateIdleTimeItem();
         _startupItem.CheckedChanged += (_, _) => SetStartup(_startupItem.Checked);
 
         var menu = new ContextMenuStrip();
@@ -59,6 +64,7 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add(_spotifyOnlyItem);
         menu.Items.Add(_showPausedItem);
         menu.Items.Add(_restoreIdleItem);
+        menu.Items.Add(_idleTimeItem);
         menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open log", null, (_, _) => { try { System.Diagnostics.Process.Start("notepad.exe", LogPath); } catch { } });
@@ -78,16 +84,33 @@ public sealed class TrayApp : ApplicationContext
             NowPlaying? np = null;
             try { np = await _media.ReadAsync(); } catch (Exception e) { Log("media: " + e.Message); }
 
+            // Idle = paused, or nothing playing at all. After the idle time, the user's own screen comes back
+            // and stays until music plays again.
+            bool idle = np == null || !np.IsPlaying;
+            if (idle) _idleSince ??= DateTime.Now; else _idleSince = null;
+            bool idleTimeUp = idle && _restoreWhenIdle && DateTime.Now - _idleSince >= TimeSpan.FromSeconds(_idleSeconds);
+
+            if (idleTimeUp)
+            {
+                _pendingKey = null;
+                if (!_restored && DateTime.Now - _lastWrite >= TimeSpan.FromSeconds(3))
+                {
+                    await RestoreCoreAsync();
+                    _lastWrite = DateTime.Now;
+                    Log($"idle for {_idleSeconds} s, restored your screen");
+                }
+                SetStatus(_keyboardProblem ?? (np == null
+                    ? "Nothing playing. Showing your screen."
+                    : $"⏸ {np.Title} (showing your screen)"));
+                return;
+            }
+
             if (np == null)
             {
                 SetStatus(_media.SpotifyOnly ? "Spotify is quiet. Press play!" : "Nothing playing. Suspiciously quiet.");
                 _pendingKey = null;
-                _idleSince ??= DateTime.Now;
-                if (_restoreWhenIdle && !_restored && DateTime.Now - _idleSince > TimeSpan.FromSeconds(60))
-                    await RestoreCoreAsync();
                 return;
             }
-            _idleSince = null;
 
             if (!_showPaused) np = np with { IsPlaying = true };
             string key = np.Key;
@@ -175,6 +198,50 @@ public sealed class TrayApp : ApplicationContext
         ExitThread();
     }
 
+    private void UpdateIdleTimeItem()
+    {
+        _idleTimeItem.Text = $"    after {FormatSeconds(_idleSeconds)}…";
+        _idleTimeItem.Enabled = _restoreWhenIdle;
+    }
+
+    private static string FormatSeconds(int s) => s == 1 ? "1 second" : $"{s} seconds";
+
+    private void AskIdleSeconds()
+    {
+        using var form = new Form
+        {
+            Text = "TrackDeck", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterScreen,
+            MinimizeBox = false, MaximizeBox = false, ShowInTaskbar = false, TopMost = true,
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(12),
+        };
+        var label = new Label
+        {
+            Text = "Put my screen back after music has been paused\nor stopped for this many seconds:",
+            AutoSize = true, Margin = new Padding(0, 0, 0, 8),
+        };
+        var number = new NumericUpDown { Minimum = MinIdleSeconds, Maximum = MaxIdleSeconds, Value = _idleSeconds, Width = 100 };
+        var unit = new Label { Text = "seconds", AutoSize = true, Margin = new Padding(6, 6, 0, 0) };
+        var ok = new Button { Text = "OK", DialogResult = DialogResult.OK };
+        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel };
+
+        var row = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 0, 0, 12) };
+        row.Controls.AddRange([number, unit]);
+        var buttons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
+        buttons.Controls.AddRange([cancel, ok]);
+        var layout = new TableLayoutPanel { AutoSize = true, ColumnCount = 1 };
+        layout.Controls.AddRange([label, row, buttons]);
+        form.Controls.Add(layout);
+        form.AcceptButton = ok;
+        form.CancelButton = cancel;
+        form.Shown += (_, _) => { number.Select(); number.Select(0, number.Text.Length); };
+
+        if (form.ShowDialog() != DialogResult.OK) return;
+        _idleSeconds = (int)number.Value;
+        UpdateIdleTimeItem();
+        SaveSettings();
+        Log($"idle time set to {_idleSeconds} s");
+    }
+
     private void SetStatus(string s)
     {
         if (s.Length > 60) s = s[..57] + "…";
@@ -195,6 +262,8 @@ public sealed class TrayApp : ApplicationContext
                 bool v = parts[1].Trim() == "true";
                 switch (parts[0].Trim())
                 {
+                    case "idleSeconds" when int.TryParse(parts[1].Trim(), out int secs):
+                        _idleSeconds = Math.Clamp(secs, MinIdleSeconds, MaxIdleSeconds); break;
                     case "spotifyOnly": _media.SpotifyOnly = v; break;
                     case "showPaused": _showPaused = v; break;
                     case "restoreWhenIdle": _restoreWhenIdle = v; break;
@@ -211,7 +280,8 @@ public sealed class TrayApp : ApplicationContext
             File.WriteAllLines(SettingsPath, [
                 $"spotifyOnly={(_media.SpotifyOnly ? "true" : "false")}",
                 $"showPaused={(_showPaused ? "true" : "false")}",
-                $"restoreWhenIdle={(_restoreWhenIdle ? "true" : "false")}"]);
+                $"restoreWhenIdle={(_restoreWhenIdle ? "true" : "false")}",
+                $"idleSeconds={_idleSeconds}"]);
         }
         catch { }
     }

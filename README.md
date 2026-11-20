@@ -21,7 +21,7 @@ TrackDeck is the alternative: a tiny tray app that shows what Spotify is playing
 
 Change the song, and the screen follows a second or two later.
 
-Right-click the tray icon for the knobs: Spotify only (or any app that tells Windows what's playing), show the paused state, put your old screen back when nothing plays, start with Windows. **Exit** puts back whatever screen you had selected (image or GIF), like it was never here.
+Right-click the tray icon for the knobs: Spotify only (or any app that tells Windows what's playing), show the paused state, put your old screen back after the music has been paused or stopped for as many seconds as you like, start with Windows. **Exit** puts back whatever screen you had selected (image or GIF), like it was never here.
 
 ## How it works
 
