@@ -42,7 +42,7 @@ Response: byte 3 echoes the command id, byte 4 is status. Byte 1 == 15 → sessi
 | 11 | CREATE file | file id (u16 LE) |
 | 12 | DELETE file | file id (u16 LE) |
 | 13 | OPEN file | buffer idx, file id (u16 LE) |
-| 15 | FACTORY RESET | ⚠️ never send |
+| 15 | FACTORY RESET | **never send** |
 | 18 | PING / pairing | |
 | 27 | SESSION control | start: `1, 4 random bytes, 0` → session id at response byte 9. stop: `2, 0,0,0,0, sessionId` |
 
@@ -53,7 +53,7 @@ Buffer index 0 = "common file index".
 
 | id | meaning |
 |---|---|
-| 3   | operating mode: 1 SELF_OPERATED, 2 HOST_CONTROLLED, 3/5 bootloader ⚠️, 4 sleep |
+| 3   | operating mode: 1 SELF_OPERATED, 2 HOST_CONTROLLED, 3/5 bootloader (**never set**), 4 sleep |
 | 62  | free storage bytes (u32) |
 | 230 | screen module present |
 | 242 | screen width |

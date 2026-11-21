@@ -101,7 +101,7 @@ public sealed class TrayApp : ApplicationContext
                 }
                 SetStatus(_keyboardProblem ?? (np == null
                     ? "Nothing playing. Showing your screen."
-                    : $"⏸ {np.Title} (showing your screen)"));
+                    : $"Paused: {np.Title} (showing your screen)"));
                 return;
             }
 
@@ -114,7 +114,7 @@ public sealed class TrayApp : ApplicationContext
 
             if (!_showPaused) np = np with { IsPlaying = true };
             string key = np.Key;
-            SetStatus(_keyboardProblem ?? $"{(np.IsPlaying ? "▶" : "⏸")} {np.Title} — {np.Artist}");
+            SetStatus(_keyboardProblem ?? $"{(np.IsPlaying ? "Playing" : "Paused")}: {np.Title} — {np.Artist}");
             if (key == _shownKey) { _pendingKey = null; return; }
 
             // Wait for the metadata to settle (title, then cover, often arrive separately),
@@ -130,7 +130,7 @@ public sealed class TrayApp : ApplicationContext
             _lastWrite = DateTime.Now;
             _restored = false;
             if (_keyboardProblem != null) { _keyboardProblem = null; Log("keyboard connected again"); }
-            SetStatus($"{(np.IsPlaying ? "▶" : "⏸")} {np.Title} — {np.Artist}");
+            SetStatus($"{(np.IsPlaying ? "Playing" : "Paused")}: {np.Title} — {np.Artist}");
             Log($"shown: {np.Title} — {np.Artist} ({(np.IsPlaying ? "playing" : "paused")})");
         }
         catch (Exception e)
