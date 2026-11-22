@@ -4,6 +4,8 @@
 
 ![TrackDeck card on the keyboard screen](docs/images/card.png)
 
+> **Now part of [Admiral](https://github.com/yourgirljolyne/Admiral).** Admiral shows this same card, together with custom keys and screen switching while SignalRGB runs, from one tray icon. It picks up TrackDeck's settings on its first run. TrackDeck still works on its own, but won't start while Admiral is running.
+
 ## Why this exists
 
 We all know iCUE sucks. So...
