@@ -25,6 +25,14 @@ internal static class Program
 
         // Default: tray app, one instance only.
         ApplicationConfiguration.Initialize();
+        // Admiral (the background program for all the Deck apps) shows the card now; two copies would fight over the screen.
+        if (System.Threading.Mutex.TryOpenExisting("Admiral.SingleInstance", out var admiral))
+        {
+            admiral.Dispose();
+            MessageBox.Show("Admiral is running and already shows the now-playing card, so TrackDeck isn't needed. " +
+                "Its card settings are in Admiral's tray menu.", "TrackDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return 0;
+        }
         using var mutex = new Mutex(true, "TrackDeck.SingleInstance", out bool first);
         if (!first)
         {
