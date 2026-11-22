@@ -84,6 +84,23 @@ public sealed class Bragi : IDisposable
         await CommandAsync(CmdSet, p);
     }
 
+    /// <summary>
+    /// Puts the keyboard in host-controlled mode for a file operation. Returns false (and changes nothing) when it
+    /// already was, e.g. because SignalRGB is streaming lighting; pass the result to <see cref="LeaveHostControlAsync"/>.
+    /// </summary>
+    public async Task<bool> EnterHostControlAsync()
+    {
+        if (await GetPropertyAsync(PropOperatingMode) == ModeHostControlled) return false;
+        await SetPropertyAsync(PropOperatingMode, ModeHostControlled);
+        return true;
+    }
+
+    /// <summary>Back to self-operated mode, but only if <see cref="EnterHostControlAsync"/> switched it.</summary>
+    public async Task LeaveHostControlAsync(bool switched)
+    {
+        if (switched) await SetPropertyAsync(PropOperatingMode, ModeSelfOperated);
+    }
+
     // ---------------- files ----------------
 
     private const byte Buffer0 = 0;
@@ -204,12 +221,19 @@ public sealed class Bragi : IDisposable
 
             using var cts = new CancellationTokenSource(Timeout);
             await _dev.WriteAsync(pkt, cts.Token);
-            // Skip unsolicited notifications until the reply with our command id arrives.
+            // Every program with the channel open (SignalRGB, Web Hub, our other apps) sees every reply, so skip
+            // the ones that are not ours: our reply echoes our command id and our session id
+            // (or says "no session", byte 1 = 15).
+            int skipped = 0;
             while (true)
             {
                 var resp = await _dev.ReadAsync(cts.Token);
-                if (resp.Length > 3 && resp[3] == header[3]) return resp;
-                Log?.Invoke($"ignored report: {Convert.ToHexString(resp.AsSpan(0, Math.Min(12, resp.Length)))}");
+                if (resp.Length > 3 && resp[3] == header[3] && (resp[2] == header[2] || resp[1] == 15))
+                {
+                    if (skipped > 0) Log?.Invoke($"cmd {header[3]}: skipped {skipped} report(s) meant for another program");
+                    return resp;
+                }
+                skipped++;
             }
         }
         catch (OperationCanceledException)
