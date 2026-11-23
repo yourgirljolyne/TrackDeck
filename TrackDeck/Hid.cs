@@ -81,6 +81,9 @@ public sealed class HidDevice : IDisposable
         return buf.AsSpan(1, Math.Max(0, n - 1)).ToArray();
     }
 
+    /// <summary>Drops input reports the system has queued for this handle (replies to other programs' commands).</summary>
+    public void FlushInput() => HidD_FlushQueue(_handle);
+
     public void Dispose()
     {
         _stream.Dispose();
@@ -142,6 +145,7 @@ public sealed class HidDevice : IDisposable
     }
 
     [DllImport("hid.dll")] private static extern void HidD_GetHidGuid(out Guid guid);
+    [DllImport("hid.dll")] private static extern bool HidD_FlushQueue(SafeFileHandle h);
     [DllImport("hid.dll")] private static extern bool HidD_GetPreparsedData(SafeFileHandle h, out IntPtr data);
     [DllImport("hid.dll")] private static extern bool HidD_FreePreparsedData(IntPtr data);
     [DllImport("hid.dll")] private static extern int HidP_GetCaps(IntPtr data, out HIDP_CAPS caps);
